@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect
+from flask import Flask, request, redirect
 from flaskext.mysql import MySQL
 import pymysql
 from flask import jsonify
