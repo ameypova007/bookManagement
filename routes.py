@@ -5,7 +5,7 @@ from flask import jsonify
 
 
 app = Flask(__name__)
-connection= pymysql.connect("localhost","root","i13D04ms$12","bookmanagement")
+connection= pymysql.connect("HOST_NAME","DB_USER_NAME","DB_PASSWORD","DB_NAME")
 cursor = connection.cursor()
 
 error_data={'KEY_ERROR':400}
