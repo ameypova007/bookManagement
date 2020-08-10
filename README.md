@@ -13,11 +13,17 @@ Step to use routes.py
 4. I have used MySQL Dump, so request you to use same.
 5. Take dump on your local and used route.py
 6. Sample JSON payload to test API.
+
 6.1. JSON input : {"author":[], "language":[], "topic":[], "title":[], "mimeType":[], "bookId":[], "pageNumber":}
+
 6.2. To retrieve the books without any filter use
       {"author":[], "language":[], "topic":[], "title":[], "mimeType":[], "bookId":[], "pageNumber":1} or
       {"author":null, "language":null, "topic":null, "title":null, "mimeType":null, "bookId":null, "pageNumber":2}
+
 6.3 To retrive using specific filter use
       {"author":["abc"], "language":[], "topic":[], "title":["pqr","mlp"], "mimeType":["qwe","poi"], "bookId":[], "pageNumber":9}
+
+6.4 To retrieve keeping few filter disabled use
+      { "author":["wil"],"language":null, "topic":[], "title":null, "mimeType":null, "bookId":null, "pageNumber":1 }
 
       
