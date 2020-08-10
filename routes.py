@@ -10,11 +10,12 @@ cursor = connection.cursor()
 
 error_data={'KEY_ERROR':400}
 
-
 def findBook(bookId, language, author, topic, title, mimeType, pageNumber):
     finalResponse = {}
 
-    if(bookId == None and language == None and author == None and title == None and mimeType == None and topic == None):
+    if((bookId == None or len(bookId) == 0) and (language == None or len(language) == 0)
+       and (author == None or len(author) == 0) and (title == None or len(title) == 0) and (mimeType == None or len(mimeType) == 0)
+       and ((topic == None) or len(topic) == 0)):
 
         # Query to get final result.
         executionQuery = f"""select bb.title, ba.birth_year, ba.death_year, ba.name as author_name, bl.code, bsub.name as
@@ -32,6 +33,7 @@ def findBook(bookId, language, author, topic, title, mimeType, pageNumber):
         # To get total number of matched records.
         countQuery = f"select count(*) from ({executionQuery}) as total"
 
+        print(executionQuery)
         # Execute query to get result set.
         cursor.execute(executionQuery)
         resultSet = cursor.fetchall()
@@ -63,6 +65,7 @@ def findBook(bookId, language, author, topic, title, mimeType, pageNumber):
             countQuery = f"select count(*) from ({executionQuery}) as total"
 
             # Execute query to get result set.
+            print(executionQuery)
             cursor.execute(executionQuery)
             resultSet = cursor.fetchall()
 
@@ -72,6 +75,122 @@ def findBook(bookId, language, author, topic, title, mimeType, pageNumber):
 
             finalResponse = prepareResponseObj(resultSet, count)
 
+        else:
+            # Query for Join.
+            joinQuery = """select bb.title, ba.birth_year, ba.death_year, ba.name as author_name, bl.code, bsub.name as
+                           subject_name, bsh.name as bookshelf_name, bb.download_count, bf.mime_type, bf.url from books_book bb
+                           left join books_book_authors bba on bba.book_id = bb.id
+                           left join books_book_languages bbl on bbl.book_id = bb.id
+                           left join books_book_bookshelves bbsh on bbsh.book_id = bb.id
+                           left join books_format bf on bf.book_id = bb.id
+                           left join books_book_subjects bbsub on bbsub.book_id = bb.id
+                           left join books_author ba on bba.author_id = ba.id
+                           left join books_language bl on bbl.language_id = bl.id
+                           left join books_bookshelf bsh on bbsh.bookshelf_id = bsh.id
+                           left join books_subject bsub on bbsub.subject_id = bsub.id where """
+
+            # Array for WHERE clause handling.
+            whereQuery = []
+
+            if(bookId != None):
+                if(len(bookId)!=0):
+                    whereQuery.append("(")
+                    if(len(bookId) == 1):
+                        whereQuery.append(f"bb.gutenberg_id = {bookId[0]}")
+                    else:
+                        bookIdTuple = tuple(bookId)
+                        whereQuery.append("bb.gutenberg_id in {}".format(bookIdTuple))
+                    whereQuery.append(" ) AND")
+
+
+            if(language != None ):
+                if(len(language)!=0):
+                    whereQuery.append("(")
+                    if(len(language) == 1):
+                        whereQuery.append(f" bbl.language_id in (select id from books_language where code = '{language[0]}')")
+                    else:
+                        for i in range(len(language)):
+                            whereQuery.append(f" bbl.language_id in (select id from books_language where code = '{language[i]}')")
+                            if i != (len(language)-1):
+                                whereQuery.append(" or")
+                    whereQuery.append(") AND")
+
+            if(author != None):
+                if(len(author)!=0):
+                    whereQuery.append("(")
+                    if(len(author) == 1):
+                        whereQuery.append(f" bba.author_id in (select id from books_author where name like '%{author[0]}%')")
+                    else:
+                        for i in range(len(author)):
+                            whereQuery.append(f" bba.author_id in (select id from books_author where name like '%{author[i]}%')")
+                            if i != (len(author)-1):
+                                whereQuery.append(" or")
+                    whereQuery.append(") AND")
+
+            if(topic != None):
+                if(len(topic)!=0):
+                    whereQuery.append("(")
+                    if(len(topic) == 1):
+                        whereQuery.append(f""" bbsub.subject_id in (select id from books_subject where name like '%{topic[0]}%') or  
+                                              bbsh.bookshelf_id in (select id from books_bookshelf where name like '%{topic[0]}%')""")
+                    else:
+                        for i in range(len(topic)):
+                            whereQuery.append(f""" bbsub.subject_id in (select id from books_subject where name like '%{topic[i]}%') or  
+                                              bbsh.bookshelf_id in (select id from books_bookshelf where name like '%{topic[i]}%')""")
+                            if i != (len(topic)-1):
+                                whereQuery.append(" or")
+                    whereQuery.append(") AND")
+
+            if(mimeType != None):
+                if(len(mimeType)!=0):
+                    whereQuery.append("(")
+                    if(len(mimeType) == 1):
+                        whereQuery.append(f" bf.mime_type = '{mimeType[0]}'")
+                    else:
+                        for i in range(len(mimeType)):
+                            whereQuery.append(f" bf.mime_type = '{mimeType[i]}'")
+                            if i != (len(mimeType)-1):
+                                whereQuery.append(" or")
+                    whereQuery.append(") AND ")
+
+
+            if(title != None):
+                if(len(title)!=0):
+                    whereQuery.append("(")
+                    if(len(title) == 1):
+                        whereQuery.append(f" bb.title like '%{title[0]}%'")
+                    else:
+                        for i in range(len(title)):
+                            whereQuery.append(f" bb.title like '%{title[i]}%'")
+                            if i != (len(title)-1):
+                                whereQuery.append(" or")
+                    whereQuery.append(") AND ")
+
+
+            # To join all WHERE clause conditions.
+            whereComplete = " ".join(whereQuery)
+
+            # To combine join query and all WHERE clause conditions.
+            combinedQuery = joinQuery + whereComplete
+
+            # Query to get final result.
+            executionQuery = combinedQuery[0:len(combinedQuery) - 4] + f" order by bb.download_count desc LIMIT {(pageNumber - 1) * 25}, 25;"
+
+            print(executionQuery)
+            # To get total number of matched records.
+            countQuery = f"select count(*) from ({combinedQuery[0:len(combinedQuery) - 4]}) as total"
+
+            
+            # Execute query to get result set.
+            cursor.execute(executionQuery)
+            resultSet = cursor.fetchall()
+
+            # Excute query to get the count.
+            cursor.execute(countQuery)
+            count = cursor.fetchall()
+
+            finalResponse = prepareResponseObj(resultSet, count)
+            
     else:
         # Query for Join.
         joinQuery = """select bb.title, ba.birth_year, ba.death_year, ba.name as author_name, bl.code, bsub.name as
@@ -173,6 +292,7 @@ def findBook(bookId, language, author, topic, title, mimeType, pageNumber):
         # Query to get final result.
         executionQuery = combinedQuery[0:len(combinedQuery) - 4] + f" order by bb.download_count desc LIMIT {(pageNumber - 1) * 25}, 25;"
 
+        print(executionQuery)
         # To get total number of matched records.
         countQuery = f"select count(*) from ({combinedQuery[0:len(combinedQuery) - 4]}) as total"
 
@@ -226,6 +346,7 @@ def searchBook():
         mimeType = req["mimeType"]
         topic = req["topic"]
         author = req["author"]
+        print(author)
         title = req["title"]
         pageNo = req['pageNumber']
         if(pageNo != None):
